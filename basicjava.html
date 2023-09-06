@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<title>Data</title>
+<style>
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #f2f4cd;
+    margin-top: 20px;
+  }
+  thead{
+    background-color: blue;
+    color: white;
+  }
+  th, td {
+    border: 1px solid #050000;
+    padding: 8px;
+    text-align: center;
+  }
+  td{
+    background-color: white;
+  }
+  input[type="text"], select {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    box-sizing: border-box;
+  }
+  #submit-btn, #clear-btn {
+    padding: 10px 20px;
+    border: none;
+    color: white;
+  }
+  .error-message {
+    color: red;
+  }
+  .data-container {
+    background-color: #c4ddf5;
+    border: 1px solid #dadace;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+    <div class="container data-container">
+    <div class="container mt-4">
+        <div class="col-md-3 mx-auto"> 
+            <h3 class="p-2 text-dark center"  style="font-size: 2rem ";>Result Table</h3>
+        </div>
+    </div>
+<form id="student-form">
+  <label for="name"><strong>Name:</strong></label>
+  <input type="text" id="name" name="name" placeholder="Enter the name" required>
+  <div class="error-message" id="name-error"></div>
+  <label for="register-no"><strong>Register Number:</strong></label>
+  <input type="text" id="register-no" name="registerNo" placeholder="Enter the register number" required>
+  <div class="error-message" id="register-no-error"></div>
+  <label for="grade"><strong>Grade:</strong></label>
+  <select id="grade" name="grade" required>
+    <option value="" disabled selected>Choose grade</option>
+    <option value="A">A</option>
+    <option value="B">B</option>
+    <option value="C">C</option>
+    <option value="D">D</option>
+    <option value="E">E</option>
+    <option value="F">F</option>
+  </select>
+  <div class="error-message" id="grade-error"></div>
+  <button  class="mt-3 rounded-pill btn-danger" type="button" id="submit-btn">Submit</button>
+  <button class="rounded-pill btn-success" type="button" id="clear-btn">Clear</button>
+</form>
+<table id="data-table">
+  <thead>
+  </thead>
+  <tbody></tbody>
+</table>
+<br>
+<button class="btn-success" type="button" id="clear-table-btn">Clear Table</button>
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+      <span class="input-group-text"><i class="fa fa-search"></i></span>
+    </div>
+    <input type="text" id="search" class="form-control" placeholder="Search by name, register number, or grade">
+    <button class="btn btn-primary" type="button" id="search-btn">Search</button>
+</div>  
+<select id="register-sort-order">
+    <option value="asc">Ascending</option>
+    <option value="desc">Descending</option>
+  </select>
+</div>
+<script>
+    const submitButton = document.getElementById("submit-btn");
+    const clearButton = document.getElementById("clear-btn");
+    const errorMessage = document.querySelector(".error-message");
+    const dataTable = document.querySelector("#data-table tbody");
+    const studentForm = document.getElementById("student-form");
+    const clearTableButton = document.getElementById("clear-table-btn");
+    const nameInput = document.getElementById("name");
+    const registerNoInput = document.getElementById("register-no");
+    const gradeInput = document.getElementById("grade");
+    let serialNumber = 1;
+    
+  function enterEditMode(row) {
+  const nameCell = row.cells[1];
+  const registerNoCell = row.cells[2];
+  const gradeCell = row.cells[3];
+  const actionCell = row.cells[4];
+
+  const nameText = nameCell.textContent;
+  const registerNoText = registerNoCell.textContent;
+  const gradeText = gradeCell.textContent;
+
+  nameCell.innerHTML = `<input type="text" class="edit-input" value="${nameText}">`;
+  registerNoCell.innerHTML = `<input type="text" class="edit-input" value="${registerNoText}">`;
+  gradeCell.innerHTML = `<select class="edit-input">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                          </select>`;
+
+  const saveButton = document.createElement("button");
+  saveButton.textContent = "Save";
+  saveButton.className = "btn btn-success btn-sm mr-2";
+  saveButton.addEventListener("click", function () {
+    const confirmSave = confirm("Are you sure you want to save the changes?");
+    if (!confirmSave) {
+      return;
+    }
+
+    const newName = nameCell.querySelector(".edit-input").value;
+    const newRegisterNo = registerNoCell.querySelector(".edit-input").value;
+    const newGrade = gradeCell.querySelector(".edit-input").value;
+
+    nameCell.textContent = newName;
+    registerNoCell.textContent = newRegisterNo;
+    gradeCell.textContent = newGrade;
+
+    actionCell.innerHTML = "";
+    const [editButton, deleteButton] = createRowActions(false);
+    actionCell.appendChild(editButton);
+    actionCell.appendChild(deleteButton);
+
+    sortTableRows();
+  });
+
+  const cancelButton = document.createElement("button");
+  cancelButton.textContent = "Cancel";
+  cancelButton.className = "btn btn-secondary btn-sm";
+  cancelButton.addEventListener("click", function () {
+    nameCell.textContent = nameText;
+    registerNoCell.textContent = registerNoText;
+    gradeCell.textContent = gradeText;
+
+    actionCell.innerHTML = "";
+    const [editButton, deleteButton] = createRowActions(false);
+    actionCell.appendChild(editButton);
+    actionCell.appendChild(deleteButton);
+  });
+
+  actionCell.innerHTML = "";
+  actionCell.appendChild(saveButton);
+  actionCell.appendChild(cancelButton);
+}
+
+function searchTable(inputElement) {
+  const searchQuery = inputElement.value.toLowerCase();
+  const rows = Array.from(dataTable.rows).slice(1); // Exclude header row
+
+  for (const row of rows) {
+    const name = row.cells[1].textContent.toLowerCase();
+    const regNumber = row.cells[2].textContent.toLowerCase();
+    const grade = row.cells[3].textContent.toLowerCase();
+
+    if (name.includes(searchQuery) || regNumber.includes(searchQuery) || grade.includes(searchQuery)) {
+      row.style.display = ''; // Display matching rows
+    } else {
+      row.style.display = 'none'; // Hide non-matching rows
+    }
+  }
+}
+const registerSortOrderSelect = document.getElementById("register-sort-order");
+registerSortOrderSelect.addEventListener("change", sortTableRows);
+    function sortTableRows() {
+      const rows = Array.from(dataTable.rows);
+      rows.sort((rowA, rowB) => {
+        const nameA = rowA.cells[1].textContent.trim().toLowerCase();
+        const nameB = rowB.cells[1].textContent.trim().toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+    
+      rows.forEach((row, index) => {
+        row.cells[0].textContent = index + 1;
+        dataTable.appendChild(row);
+      });
+    }
+    
+    function toggleClearTableButton() {
+      clearTableButton.style.display = dataTable.rows.length > 0 ? "block" : "none";
+    }
+    
+    function addTableHeading() {
+          const thead = document.querySelector("#data-table thead");
+          const headingRow = document.createElement("tr");
+          const headings = ["Serial Number", "Name", "Register No", "Grade","Actions"];
+    
+          headings.forEach(headingText => {
+            const headingCell = document.createElement("th");
+            headingCell.textContent = headingText;
+            headingRow.appendChild(headingCell);
+          });
+    
+          thead.appendChild(headingRow);
+        }
+    
+    function createTableHeading() {
+      const thead = document.querySelector("#data-table thead");
+      const headingRow = document.createElement("tr");
+      const headings = ["Serial Number", "Name", "Register No", "Grade","Actions"];
+    
+      headings.forEach(headingText => {
+        const headingCell = document.createElement("th");
+        headingCell.textContent = headingText;
+        headingRow.appendChild(headingCell);
+      });
+    
+      thead.appendChild(headingRow);
+    }
+    function enterEditMode(row) {
+  const nameCell = row.cells[1];
+  const registerNoCell = row.cells[2];
+  const gradeCell = row.cells[3];
+  const actionCell = row.cells[4];
+
+  const nameText = nameCell.textContent;
+  const registerNoText = registerNoCell.textContent;
+  const gradeText = gradeCell.textContent;
+
+  nameCell.innerHTML = `<input type="text" class="edit-input" value="${nameText}">`;
+  registerNoCell.innerHTML = `<input type="text" class="edit-input" value="${registerNoText}">`;
+  gradeCell.innerHTML = `<select class="edit-input">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                          </select>`;
+
+  const saveButton = document.createElement("button");
+  saveButton.textContent = "Update";
+  saveButton.className = "btn btn-success btn-sm mr-2";
+  saveButton.addEventListener("click", function() {
+    const confirmSave = confirm("Are you sure you want to save the changes?");
+    if (!confirmSave) {
+      return;
+    }
+
+    const newName = nameCell.querySelector(".edit-input").value;
+    const newRegisterNo = registerNoCell.querySelector(".edit-input").value;
+    const newGrade = gradeCell.querySelector(".edit-input").value;
+
+    nameCell.textContent = newName;
+    registerNoCell.textContent = newRegisterNo;
+    gradeCell.textContent = newGrade;
+
+    row.querySelector(".edit-button").style.display = "inline-block";
+    row.querySelector(".delete-button").style.display = "inline-block";
+
+    // Clear the edit inputs and buttons
+    actionCell.innerHTML = "";
+    actionCell.appendChild(editButton);
+    actionCell.appendChild(deleteButton);
+
+    sortTableRows();
+  });
+
+  const cancelButton = document.createElement("button");
+  cancelButton.textContent = "Cancel";
+  cancelButton.className = "btn btn-secondary btn-sm";
+  cancelButton.addEventListener("click", function() {
+    nameCell.textContent = nameText;
+    registerNoCell.textContent = registerNoText;
+    gradeCell.textContent = gradeText;
+
+    row.querySelector(".edit-button").style.display = "inline-block";
+    row.querySelector(".delete-button").style.display = "inline-block";
+
+    // Clear the edit inputs and buttons
+    actionCell.innerHTML = "";
+    actionCell.appendChild(editButton);
+    actionCell.appendChild(deleteButton);
+  });
+
+  actionCell.innerHTML = "";
+  actionCell.appendChild(saveButton);
+  actionCell.appendChild(cancelButton);
+}
+    submitButton.addEventListener("click", function() {
+      const name = nameInput.value;
+      const registerNo = registerNoInput.value;
+      const grade = gradeInput.value;
+    
+      document.getElementById("name-error").textContent = "";
+      document.getElementById("register-no-error").textContent = "";
+      document.getElementById("grade-error").textContent = "";
+      if (name === "" && registerNo === "" && grade === "") {
+            document.getElementById("name-error").textContent = "Please fill in the name.";
+            document.getElementById("register-no-error").textContent = "Please fill in the register number.";
+            document.getElementById("grade-error").textContent = "Please choose a grade.";
+            nameInput.focus();
+            errorMessage.style.display = "block";
+            return;
+          } 
+          if (name === "" && registerNo === "" ) {
+            document.getElementById("name-error").textContent = "Please fill in the name.";
+            document.getElementById("register-no-error").textContent = "Please fill in the register number.";
+            nameInput.focus();
+            errorMessage.style.display = "block";
+            return;
+          } 
+          if (registerNo === "" && grade === "") {
+            document.getElementById("register-no-error").textContent = "Please fill in the register number.";
+            document.getElementById("grade-error").textContent = "Please choose a grade.";
+            registerNoInput.focus();
+            errorMessage.style.display = "block";
+            return;
+          } 
+          if (name === "" && grade === "") {
+            document.getElementById("name-error").textContent = "Please fill in the name.";
+            document.getElementById("grade-error").textContent = "Please choose a grade.";
+            nameInput.focus();
+    
+            errorMessage.style.display = "block";
+            return;
+          } 
+      if (name === "") {
+        document.getElementById("name-error").textContent = "Please fill in the name.";
+        nameInput.focus();
+        errorMessage.style.display = "block";
+        return;
+      } 
+    
+      if (registerNo === "") {
+        document.getElementById("register-no-error").textContent = "Please fill in the register number.";
+        registerNoInput.focus();
+        errorMessage.style.display = "block";
+        return;
+      } 
+    
+      if (grade === "") {
+        document.getElementById("grade-error").textContent = "Please choose a grade.";
+        gradeInput.focus();
+        errorMessage.style.display = "block";
+        return;
+      } 
+    
+
+      errorMessage.style.display = "none";
+    
+      if (dataTable.rows.length === 0) {
+            addTableHeading();
+          }
+    
+          const newRow = dataTable.insertRow();
+      const cell0 = newRow.insertCell(0); 
+      const cell1 = newRow.insertCell(1);
+      const cell2 = newRow.insertCell(2);
+      const cell3 = newRow.insertCell(3);
+      const actionCell = newRow.insertCell(4); 
+    
+      cell0.textContent = serialNumber;
+      cell0.className = "serial-number";
+      cell1.textContent = name;
+      cell2.textContent = registerNo;
+      cell3.textContent = grade;
+    
+    const editButton = document.createElement("button");
+    editButton.textContent = "Edit";
+    editButton.className = "btn btn-primary btn-sm mr-2";
+    editButton.addEventListener("click", function() {
+      const row = editButton.closest("tr");
+      
+      const nameCell = row.cells[1];
+      const registerNoCell = row.cells[2];
+      const gradeCell = row.cells[3];
+      const actionCell = row.cells[4];
+      
+      const nameText = nameCell.textContent;
+      const registerNoText = registerNoCell.textContent;
+      const gradeText = gradeCell.textContent;
+    
+      nameCell.innerHTML = `<input type="text" class="edit-input" value="${nameText}">`;
+      registerNoCell.innerHTML = `<input type="text" class="edit-input" value="${registerNoText}">`;
+      gradeCell.innerHTML = `<select class="edit-input">
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                                <option value="F">F</option>
+                              </select>`;
+      
+      const saveButton = document.createElement("button");
+      saveButton.textContent = "update";
+      saveButton.className = "btn btn-success btn-sm mr-2";
+      saveButton.addEventListener("click", function() {
+      const confirmSave = confirm("Are you sure you want to save the changes?");
+      if (!confirmSave) {
+        return;
+      }
+    
+      const newName = nameCell.querySelector(".edit-input").value;
+      const newRegisterNo = registerNoCell.querySelector(".edit-input").value;
+      const newGrade = gradeCell.querySelector(".edit-input").value;
+    
+      nameCell.textContent = newName;
+      registerNoCell.textContent = newRegisterNo;
+      gradeCell.textContent = newGrade;
+    
+      actionCell.innerHTML = `
+        <button class="btn btn-primary btn-sm mr-2 edit-button">Edit</button>
+        <button class="btn btn-danger btn-sm delete-button">Delete</button>
+      `;
+    
+      sortTableRows();
+    });
+      
+      actionCell.innerHTML = "";
+      actionCell.appendChild(saveButton);
+      
+      const cancelButton = document.createElement("button");
+      cancelButton.textContent = "Cancel";
+      cancelButton.className = "btn btn-secondary btn-sm";
+      cancelButton.addEventListener("click", function() {
+        nameCell.textContent = nameText;
+        registerNoCell.textContent = registerNoText;
+        gradeCell.textContent = gradeText;
+        
+        actionCell.innerHTML = `
+          <button class="btn btn-primary btn-sm mr-2 edit-button">Edit</button>
+          <button class="btn btn-danger btn-sm delete-button">Delete</button>
+        `;
+      });
+      
+      actionCell.appendChild(cancelButton);
+    });
+    
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Delete";
+    deleteButton.className = "btn btn-danger btn-sm";
+    deleteButton.addEventListener("click", function() {
+    const confirmDelete = confirm("Are you sure you want to delete?");
+    
+    if (confirmDelete) { 
+        const row = deleteButton.closest("tr");
+        if (row) {
+            const dataTable = document.querySelector("#data-table");
+            row.remove();
+            toggleClearTableButton();
+            const rows = dataTable.querySelectorAll("tbody tr");
+            rows.forEach((row, index) => {
+                row.cells[0].textContent = index + 1;
+            });
+
+            if (rows.length === 0) {
+                const thead = document.querySelector("#data-table thead");
+                while (dataTable.firstChild) {
+                    dataTable.removeChild(dataTable.firstChild);
+                }
+                if (thead) {
+                    thead.innerHTML = "";
+                }
+            }
+        }
+    } else {
+    }
+});
+      actionCell.appendChild(editButton);
+      actionCell.appendChild(deleteButton);
+    
+      serialNumber++;
+      sortTableRows();
+      toggleClearTableButton();
+      studentForm.reset();
+    });
+    clearButton.addEventListener("click", function() {
+      studentForm.reset();
+      document.getElementById("name-error").textContent = "";
+      document.getElementById("register-no-error").textContent = "";
+      document.getElementById("grade-error").textContent = "";
+    
+      toggleClearTableButton();
+    });
+    // Attach event listener to the parent table for delegation
+  dataTable.addEventListener("click", function(event) {
+  const target = event.target;
+
+  if (target.classList.contains("edit-button")) {
+    handleEditButtonClick(target);
+  } else if (target.classList.contains("delete-button")) {
+    handleDeleteButtonClick(target);
+  }
+});
+    
+    function sortTableRows() {
+  const sortOrder = document.getElementById("register-sort-order").value;
+  
+  const rows = Array.from(dataTable.rows);
+  rows.sort((rowA, rowB) => {
+    const registerNoA = rowA.cells[2].textContent.trim().toLowerCase();
+    const registerNoB = rowB.cells[2].textContent.trim().toLowerCase();
+    return sortOrder === "asc" ? registerNoA.localeCompare(registerNoB) : registerNoB.localeCompare(registerNoA);
+  });
+
+  rows.forEach((row, index) => {
+    row.cells[0].textContent = index + 1;
+    dataTable.appendChild(row);
+  });
+}
+    clearTableButton.addEventListener("click", function() {
+      const thead = document.querySelector("#data-table thead");
+      while (dataTable.firstChild) {
+        dataTable.removeChild(dataTable.firstChild);
+      }
+      if (thead) {
+        thead.innerHTML = "";
+      }
+      serialNumber = 1;
+      const existingHeadingRow = document.querySelector("#data-table thead tr");
+      if (existingHeadingRow) {
+        existingHeadingRow.innerHTML = "";
+      }
+      toggleClearTableButton();
+    });
+    toggleClearTableButton();
+const searchButton = document.getElementById("search-btn");
+const searchInput = document.getElementById("search");
+
+searchButton.addEventListener("click", function() {
+  const searchQuery = searchInput.value.trim().toLowerCase();
+
+  const rows = Array.from(dataTable.rows).slice(1); // Exclude header row
+
+  for (const row of rows) {
+    const name = row.cells[1].textContent.toLowerCase();
+    const regNumber = row.cells[2].textContent.toLowerCase();
+    const grade = row.cells[3].textContent.toLowerCase();
+
+    if (
+      name.includes(searchQuery) ||
+      regNumber.includes(searchQuery) ||
+      grade.includes(searchQuery)
+    ) {
+      row.style.display = ""; // Display matching rows
+    } else {
+      row.style.display = "none"; // Hide non-matching rows
+    }
+  }
+});
+
+    </script>
+</body>
+</html>

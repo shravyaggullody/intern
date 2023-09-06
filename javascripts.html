@@ -380,22 +380,50 @@ if (updatedData.length > 0) {
         <button class="cancel-btn">Cancel</button>
       `;
 
-     // Handle Update button
+// Initialize a flag to track the state of the Update button
+let isUpdateButtonDisabled = false;
+
+// Handle Update button
 const updateBtn = editCell.querySelector(".update-btn");
 updateBtn.addEventListener("click", function () {
   const newName = cells[1].querySelector("input").value;
   const newRegisterNo = cells[2].querySelector("input").value;
   const newGrade = cells[3].querySelector("select").value;
 
-  // Ask for confirmation before updating
-  const confirmUpdate = confirm("Are you sure you want to update this record?");
-  if (confirmUpdate) {
-    data[index].name = newName;
-    data[index].registerNo = newRegisterNo;
-    data[index].grade = newGrade;
-    updateTable();
+  // Check if any changes were made
+  const changesMade =
+    newName !== originalContent.name ||
+    newRegisterNo !== originalContent.registerNo ||
+    newGrade !== originalContent.grade;
+
+  if (changesMade) {
+    // Ask for confirmation before updating
+    const confirmUpdate = confirm("Are you sure you want to update this record?");
+    if (confirmUpdate) {
+      data[index].name = newName;
+      data[index].registerNo = newRegisterNo;
+      data[index].grade = newGrade;
+      updateTable();
+    }
+  } else {
+    // No changes were made, disable the "Update" button
+    updateBtn.disabled = true;
+    isUpdateButtonDisabled = true; // Set the flag to true
   }
 });
+
+// Attach an input event listener to the input fields for further edits
+cells[1].querySelector("input").addEventListener("input", enableUpdateButton);
+cells[2].querySelector("input").addEventListener("input", enableUpdateButton);
+cells[3].querySelector("select").addEventListener("change", enableUpdateButton);
+
+function enableUpdateButton() {
+  // Enable the "Update" button if further edits are made
+  if (isUpdateButtonDisabled) {
+    updateBtn.disabled = false;
+    isUpdateButtonDisabled = false; // Reset the flag
+  }
+}
 
 // Handle Cancel button
 const cancelBtn = editCell.querySelector(".cancel-btn");
